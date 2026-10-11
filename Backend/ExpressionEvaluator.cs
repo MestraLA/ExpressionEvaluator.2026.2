@@ -1,27 +1,40 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Reflection.Metadata;
-
-namespace Backend;
-
-public static class ExpressionEvaluator
+﻿namespace Backend;public static class ExpressionEvaluator
 {
-    public static double Evalute(string infix) => EvalutePostfix(ToPostfix(infix));
-
+    public static double Evaluate(string infix) => EvaluatePostfix(ToPostfix(infix));
     private static string ToPostfix(string infix)
     {
-        var posfix = string.Empty;
+        var postfix = string.Empty;
         var stack = new Stack<char>();
-        foreach (var item in infix)
+
+        for (int i = 0; i < infix.Length; i++)
         {
-            if (IsOperator(item))
+            var item = infix[i];
+
+            // Si encontramos un número o punto
+            if (char.IsDigit(item) || item == '.')
+            {
+                while (i < infix.Length && (char.IsDigit(infix[i]) || infix[i] == '.'))
+                {
+                    postfix += infix[i];
+                    i++;
+                }
+
+                // Espacio para separar el número de otro número u operador
+                postfix += " ";
+
+                i--;
+            }
+            else if (IsOperator(item))
             {
                 if (item == ')')
                 {
-                    var ope = stack.Pop();
-                    while(ope != '(')
+                    var op = stack.Pop();
+
+                    while (op != '(')
                     {
-                        posfix += ope;
-                        ope = stack.Pop();
+                        postfix += op;
+                        postfix += " ";
+                        op = stack.Pop();
                     }
                 }
                 else
@@ -38,24 +51,22 @@ public static class ExpressionEvaluator
                         }
                         else
                         {
-                            posfix += stack.Pop();
+                            postfix += stack.Pop();
+                            postfix += " ";
                             stack.Push(item);
                         }
                     }
                 }
             }
-            else
-            {
-                posfix += item;
-            }
         }
-        do
+        while (stack.Count != 0)
         {
-            posfix += stack.Pop();
-        } while (stack.Count != 0);
-        return posfix;
-    }
+            postfix += stack.Pop();
+            postfix += " ";
+        }
 
+        return postfix;
+    }
     private static int PriorityStack(char op) => op switch
     {
         '^' => 3,
@@ -64,7 +75,7 @@ public static class ExpressionEvaluator
         '+' => 1,
         '-' => 1,
         '(' => 0,
-        _ => throw new Exception("Invalid expression."),
+        _ => throw new Exception("Expresión inválida."),
     };
 
     private static int PriorityInfix(char op) => op switch
@@ -75,37 +86,60 @@ public static class ExpressionEvaluator
         '+' => 1,
         '-' => 1,
         '(' => 5,
-        _ => throw new Exception("Invalid expression."),
+        _ => throw new Exception("Expresión inválida."),
     };
 
-    private static bool IsOperator(char item) => item == '^' || item == '*' || item == '/' || item == '+' || item == '-' || item == '(' || item == ')';
+    private static bool IsOperator(char item) =>
+        item == '^' ||
+        item == '*' ||
+        item == '/' ||
+        item == '+' ||
+        item == '-' ||
+        item == '(' ||
+        item == ')';
 
-    private static double EvalutePostfix(string postfix)
+    private static double EvaluatePostfix(string postfix)
     {
         var stack = new Stack<double>();
+        var number = string.Empty;
+
         foreach (var item in postfix)
         {
-            if (IsOperator(item))
+            // Si encontramos un dígito o puntos, lo guardamos
+            if (char.IsDigit(item) || item == '.')
             {
-                var ope2 = stack.Pop();
-                var ope1 = stack.Pop();
-                stack.Push(Calculate(ope1, ope2, item));
+                number += item;
             }
-            else
+            else if (item == ' ')
             {
-                stack.Push(char.GetNumericValue(item));
+                // Cuando encontramos un espacio, convertimos el número completo
+                if (number != string.Empty)
+                {
+                    stack.Push(double.Parse(number, System.Globalization.CultureInfo.InvariantCulture));
+                    number = string.Empty;
+                    
+                }
             }
+            else if (IsOperator(item))
+            {
+                var operand2 = stack.Pop();
+                var operand1 = stack.Pop();
+
+                stack.Push(Calculate(operand1, operand2, item));
+            }
+
         }
+
         return stack.Pop();
     }
 
-    private static double Calculate(double ope1, double ope2, char item) => item switch
+    private static double Calculate(double operand1, double operand2, char item) => item switch
     {
-        '*' => ope1 * ope2,
-        '/' => ope1 / ope2,
-        '+' => ope1 + ope2,
-        '-' => ope1 - ope2,
-        '^' => Math.Pow(ope1, ope2),
-        _ => throw new Exception("Invalid expression."),
+        '*' => operand1 * operand2,
+        '/' => operand1 / operand2,
+        '+' => operand1 + operand2,
+        '-' => operand1 - operand2,
+        '^' => Math.Pow(operand1, operand2),
+        _ => throw new Exception("Expresión inválida."),
     };
 }
